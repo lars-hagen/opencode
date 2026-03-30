@@ -1,5 +1,6 @@
 import { describeRoute, resolver } from "hono-openapi"
 import { Hono } from "hono"
+import type { UpgradeWebSocket } from "hono/ws"
 import { proxy } from "hono/proxy"
 import z from "zod"
 import { createHash } from "node:crypto"
@@ -40,11 +41,15 @@ const DEFAULT_CSP =
 const csp = (hash = "") =>
   `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'${hash ? ` 'sha256-${hash}'` : ""}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' data:; connect-src 'self' data:`
 
-export const InstanceRoutes = (app?: Hono) =>
+const noop = ((..._args: never[]) => {
+  throw new Error("WebSocket upgrade unavailable")
+}) as unknown as UpgradeWebSocket
+
+export const InstanceRoutes = (app?: Hono, ws?: UpgradeWebSocket) =>
   (app ?? new Hono())
     .onError(errorHandler(log))
     .route("/project", ProjectRoutes())
-    .route("/pty", PtyRoutes())
+    .route("/pty", PtyRoutes(ws ?? noop))
     .route("/config", ConfigRoutes())
     .route("/experimental", ExperimentalRoutes())
     .route("/session", SessionRoutes())
